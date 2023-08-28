@@ -15,6 +15,17 @@ def get_data_from_google_sheet(sheet_url, sheet_range):
         print("Failed to fetch data from Google Sheet.")
         return None
 
+def pin_telegram_message(bot_token, chat_id, message_id):
+    url = f'https://api.telegram.org/bot{bot_token}/pinChatMessage'
+    payload = {'chat_id': chat_id, 'message_id': message_id}
+
+    response = requests.post(url, data=payload)
+
+    if response.ok:
+        print('Telegram message pinned successfully.')
+    else:
+        print('Failed to pin Telegram message.')
+
 def send_telegram_message(bot_token, chat_id, message):
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
     payload = {'chat_id': chat_id, 'text': message}
@@ -23,8 +34,10 @@ def send_telegram_message(bot_token, chat_id, message):
 
     if response.ok:
         print('Telegram message sent successfully.')
+        return response.json()  # Return the response content as JSON
     else:
         print('Failed to send Telegram message.')
+        return None
 
 def lambda_handler(event, context):
     # Set the locale to French
@@ -53,10 +66,16 @@ def lambda_handler(event, context):
             if row[0].strip('"') == current_date.strftime('%d/%m/%Y'):
                 message_lines = [date_range_str]
                 for name, value in zip(names[1:], row[1:]):
+                    print(name, value)
                     message_lines.append("{}: {}".format(name.strip('"'), value.strip('"')))
                 message = "\n".join(message_lines)
                 # Send the message to Telegram
-                send_telegram_message(telegram_bot_token, telegram_chat_id, message)
+                message_response = send_telegram_message(telegram_bot_token, telegram_chat_id, message)
+                if message_response:
+                    message_id = message_response['result']['message_id']
+                    # Pin the message
+                    pin_telegram_message(telegram_bot_token, telegram_chat_id, message_id)
+                
                 break
         else:
             # This else block is executed when the loop completes without encountering a break
