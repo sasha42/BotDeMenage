@@ -2,6 +2,10 @@ import os
 import requests
 from datetime import datetime, timedelta
 import locale
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def get_data_from_google_sheet(sheet_url, sheet_range):
     # Get data from the public Google Sheet using the URL
@@ -39,16 +43,20 @@ def send_telegram_message(bot_token, chat_id, message):
         print('Failed to send Telegram message.')
         return None
 
-def lambda_handler(event, context):
+def main():
     # Set the locale to French
     locale.setlocale(locale.LC_TIME, 'fr_FR')
 
-    # Replace with your actual values (You can set these environment variables in AWS Lambda configuration)
-    google_sheet_url = os.environ['GOOGLE_SHEET_URL']
+    # Replace with your actual values or load from environment variables
+    google_sheet_url = os.getenv('GOOGLE_SHEET_URL')
     google_sheet_range = 'schedule'
 
-    telegram_bot_token = os.environ['TELEGRAM_BOT_TOKEN']
-    telegram_chat_id = os.environ['TELEGRAM_CHAT_ID']
+    telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+    telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
+
+    if not all([google_sheet_url, telegram_bot_token, telegram_chat_id]):
+        print("Please set the GOOGLE_SHEET_URL, TELEGRAM_BOT_TOKEN, and TELEGRAM_CHAT_ID environment variables.")
+        return
 
     # Get data from the public Google Sheet
     data = get_data_from_google_sheet(google_sheet_url, google_sheet_range)
@@ -75,15 +83,14 @@ def lambda_handler(event, context):
                     message_id = message_response['result']['message_id']
                     # Pin the message
                     pin_telegram_message(telegram_bot_token, telegram_chat_id, message_id)
-                
                 break
         else:
             # This else block is executed when the loop completes without encountering a break
             message_lines = [f"No data found for {date_range_str}"]
             message = "\n".join(message_lines)
             send_telegram_message(telegram_bot_token, telegram_chat_id, message)
+    else:
+        print("No data available from the Google Sheet.")
 
-    return {
-        'statusCode': 200,
-        'body': 'Telegram message sent successfully.'
-    }
+if __name__ == "__main__":
+    main()

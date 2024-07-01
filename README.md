@@ -1,40 +1,100 @@
-# Bot de menage
-> Telegram bot that reminds everyone to clean the appartment.
+# Bot de Ménage
+> Telegram bot that reminds everyone to clean the apartment.
 
-The bot runs on AWS Lambda and reminds everyone to clean the appartment every week. It plugs into a Telegram group chat and sends a message to the group chat every week.
+![Screenshot of bot de menage](screenshot.png "Bot de menage")
+
+**🐏 Fetches cleaning tasks from a Google Sheet**
+
+**💬 Sends tasks to Telegram group once a week**
+
+**📌 Pins the message in the chat**
 
 ## Setup
-1. Create a Telegram bot using [BotFather](https://core.telegram.org/bots#6-botfather). You will need the bot token.
-2. Create a Telegram group chat and add the bot to the group. You will need the chat ID, which you can get by sending a message to the group chat and then calling the Telegram API method `getUpdates`. You will need the 'id' which is a negative number.
-    ```
-    curl "https://api.telegram.org/bot<botId>/getUpdates"
-    ```
-    
-3. Create a new AWS Lambda function.
-4. Add an EventBridge trigger to the Lambda function. Set the schedule with a cron expression to run every week.
-5. Add the neccesary environment variables to the Lambda function:
-    - `TELEGRAM_BOT_TOKEN`: The token of the Telegram bot.
-    - `TELEGRAM_CHAT_ID`: The chat ID of the Telegram group chat.
-6. Add the code to the Lambda function.
-7. Add the `requests` layer to the Lambda function.
 
-## How to create a Lambda layer
-Sometimes, AWS Lambda does not have the neccesary packages installed. In this case, you can create a Lambda layer and add it to the Lambda function. This is how you create a Lambda layer using the Cloud9 IDE:
-```
-mkdir folder
-cd folder
-virtualenv venv
-source venv/bin/activate
-pip install supabase
-pip install requests
-deactivate
-mkdir python
-cd python/
-cp -r ../venv/lib64/python3.7/site-packages/* .
-cd ..
-zip -r supabase_requests_layer.zip python
-aws lambda publish-layer-version --layer-name supabase_requests --zip-file fileb://supabase_requests_layer.zip --compatible-runtimes python3.9
-```
+1. **Create a Telegram Bot:**
+   - Use [BotFather](https://core.telegram.org/bots#6-botfather) to create a new Telegram bot. You will receive a bot token upon creation.
+
+2. **Create a Telegram Group Chat:**
+   - Create a Telegram group chat and add your bot to the group.
+   - Obtain the chat ID by sending a message to the group chat and then calling the Telegram API method `getUpdates`. Look for the 'id' field in the response, which is a negative number.
+     ```sh
+     curl "https://api.telegram.org/bot<botId>/getUpdates"
+     ```
+
+3. **Set Up Your Python Environment:**
+   - Create a virtual environment and install necessary packages. Clone the repository and run the following commands:
+     ```sh
+     python3 -m venv venv
+     source venv/bin/activate
+     pip install requests python-dotenv
+     ```
+
+4. **Add .env file with Google Sheet URL, Bot Token and Chat ID:**
+   - Create a `.env` file in the project directory with the following content, remember to add your own values:
+     ```sh
+     export GOOGLE_SHEET_URL=''
+     export TELEGRAM_BOT_TOKEN=''
+     export TELEGRAM_CHAT_ID=''
+     ```
+
+4. **Create a `menage.service` File:**
+   - Create a `menage.service` file in `/etc/systemd/system/menage.service` with the following content:
+     ```ini
+     [Unit]
+     Description=Sends Telegram message with cleaning tasks once a week
+
+     [Service]
+     Type=oneshot
+     User=sasha
+     Group=sasha
+     WorkingDirectory=/home/sasha/BotMenage/
+     Environment="PATH=/home/sasha/BotMenage/venv/bin"
+     ExecStart=/home/sasha/BotMenage/venv/bin/python /home/sasha/BotMenage/bot.py
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+
+5. **Create a `menage.timer` File:**
+   - Create a `menage.timer` file in `/etc/systemd/system/menage.timer` with the following content:
+     ```ini
+     [Unit]
+     Description=Weekly Task Timer
+
+     [Timer]
+     OnCalendar=Mon 09:00
+     Persistent=true
+
+     [Install]
+     WantedBy=timers.target
+     ```
+
+6. **Reload systemd and Enable the Timer:**
+   - Reload the systemd manager configuration to recognize the new unit files, and then enable and start the timer.
+     ```sh
+     sudo systemctl daemon-reload
+     sudo systemctl enable menage.timer
+     sudo systemctl start menage.timer
+     ```
+
+9. **Ensure locale exists:**
+    - If you encounter an error related to the locale, you can generate the locale by running the following command:
+      ```sh
+      sudo apt-get update
+      sudo apt-get install locales
+      sudo locale-gen fr_FR fr_FR.UTF-8
+      sudo dpkg-reconfigure locales
+      ```
+
+8. **Run the Script Manually (Optional):**
+   - You can manually run the script to test if everything is set up correctly.
+     ```sh
+     source /home/sasha/BotMenage/venv/bin/activate
+     python /home/sasha/BotMenage/bot.py
+     ```
+
+
+Happy cleaning!
 
 ---
-Built by Sasha in 2023
+Built by Sasha in 2023-2024
